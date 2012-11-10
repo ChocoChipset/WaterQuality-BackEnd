@@ -1,0 +1,27 @@
+-   fields: {name: Dummy source, url: 'http://example.com'}
+    model: api.source
+    pk: 1
+-   fields: {code: 0, label: Bad}
+    model: api.code
+    pk: 1
+-   fields: {code: 1, label: OK}
+    model: api.code
+    pk: 2
+-   fields: {code: 2, label: Good}
+    model: api.code
+    pk: 3
+-   fields: {code: 3, label: Awesome}
+    model: api.code
+    pk: 4
+-   fields: {code: 4, label: Bacteria}
+    model: api.code
+    pk: 5
+-   fields: {code: 5, label: Radioactivity}
+    model: api.code
+    pk: 6
+-   fields: {code: 6, label: Sediments}
+    model: api.code
+    pk: 7
+-   fields: {code: 7, label: Chemical Contamination}
+    model: api.code
+    pk: 8
