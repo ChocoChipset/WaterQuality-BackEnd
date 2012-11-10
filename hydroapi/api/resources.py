@@ -1,7 +1,7 @@
 import re
 import json
 from django.conf.urls import url
-from django.contrib.gis.geos import Point
+from django.contrib.gis.geos import Point, Polygon
 from django.contrib.gis.measure import D
 from tastypie import fields
 from tastypie.utils import trailing_slash
@@ -82,11 +82,14 @@ class MeasurementsResource(ModelResource):
             'lat': ALL,
             'long': ALL,
             'distance': ALL,
+            'dlat': ALL,
+            'dlong': ALL,
         }
 
     def prepend_urls(self):
         return [
-            url(r'^(?P<resource_name>%s)/(?P<lat>-?\d+(\.\d+)?)/(?P<long>-?\d+(\.\d+)?)(/(?P<distance>\d+))?%s$' % (self._meta.resource_name, trailing_slash()), self.wrap_view('get_for_coords'), name='api_get_for_coord'),
+            url(r'^(?P<resource_name>%s)/(?P<lat>-?\d+(\.\d+)?)/(?P<long>-?\d+(\.\d+)?)(/(?P<distance>\d+))?%s$' % (self._meta.resource_name, trailing_slash()), self.wrap_view('get_list'), name='api_get_for_coord'),
+            url(r'^(?P<resource_name>%s)/(?P<lat>-?\d+(\.\d+)?)/(?P<long>-?\d+(\.\d+)?)/(?P<dlat>\d+(\.\d+)?)/(?P<dlong>\d+(\.\d+)?)%s$' % (self._meta.resource_name, trailing_slash()), self.wrap_view('get_list'), name='api_get_for_coord_bb'),
         ]
 
     def get_list(self, request, **kwargs):
@@ -101,7 +104,7 @@ class MeasurementsResource(ModelResource):
 
     def build_filters(self, filters=None):
         # Here be dragons
-        filters_to_bypass = ['lat', 'long', 'distance']
+        filters_to_bypass = ['lat', 'long', 'distance', 'dlat', 'dlong']
         bypass = {}
         if filters is not None:
             for filter_name in filters_to_bypass:
@@ -114,15 +117,24 @@ class MeasurementsResource(ModelResource):
     def apply_filters(self, request, applicable_filters):
         point = None
         distance = None
+        dlat, dlong = None, None
         if 'lat' in applicable_filters and 'long' in applicable_filters:
             latitude = float(applicable_filters.pop('lat'))
             longitude = float(applicable_filters.pop('long'))
             point = Point(longitude, latitude)
             if 'distance' in applicable_filters:
                 distance = applicable_filters.pop('distance')
+            elif 'dlat' in applicable_filters and 'dlong' in applicable_filters:
+                dlat = float(applicable_filters.pop('dlat'))
+                dlong = float(applicable_filters.pop('dlong'))
         filtered = super(MeasurementsResource, self).apply_filters(request, applicable_filters)
-        if point is not None and distance is not None:
-            filtered = filtered.filter(location__distance_lte=(point, D(m=int(distance))))
+        if point is not None:
+            if distance is not None:
+                filtered = filtered.filter(location__distance_lte=(point, D(m=int(distance))))
+            elif dlat is not None and dlong is not None:
+                bbox = [point.x - dlong, point.y - dlat, point.x + dlong, point.y + dlat]
+                geom = Polygon.from_bbox(bbox)
+                filtered = filtered.filter(location__coveredby=geom)
         return filtered
 
     def apply_sorting(self, obj_list, options=None, **kwargs):
@@ -130,10 +142,6 @@ class MeasurementsResource(ModelResource):
             point = Point(float(kwargs['long']), float(kwargs['lat']))
             obj_list = obj_list.distance(point).order_by('distance')
         return obj_list
-
-    def get_for_coords(self, request, **kwargs):
-        resource = MeasurementsResource()
-        return resource.get_list(request, **kwargs)
 
     def determine_format(self, request):
         return self._meta.default_format

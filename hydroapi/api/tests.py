@@ -122,3 +122,12 @@ class RetrievalByLocationTest(TestCase):
         self.assertEqual(len(elements['objects']), 1)
         for i, name in enumerate(['Warsaw']):
             self.assertEqual(elements['objects'][i]['locationName'], name)
+
+    def test_sorting_by_distance_from_point_with_bound(self):
+        location = (53, 21)
+        bounds = (2, 2)
+        response = self.client.get('/v1/measurements/%lf/%lf/%lf/%lf/' % (location + bounds))
+        elements = json.loads(response.content)
+        self.assertEqual(len(elements['objects']), 1)
+        for i, name in enumerate(['Warsaw']):
+            self.assertEqual(elements['objects'][i]['locationName'], name)
