@@ -2,7 +2,7 @@ import json
 from django.test import TestCase
 from django.test.client import Client
 from django.contrib.gis.geos import Point
-from api.models import Measurement, Code, Source
+from api.models import Measurement, Code, Source, Attribute
 
 
 class MeasurementsResourceTest(TestCase):
@@ -37,6 +37,8 @@ class MeasurementsResourceTest(TestCase):
                                                  quality=87,
                                                  code=code,
                                                  location_name=location_name)
+        for k, v in self.ATTRIBUTES.iteritems():
+            Attribute.objects.create(key=k, value=v, measurement=measurement)
         self.measurement = measurement
 
     def assert_dict_equal(self, a, b):
@@ -61,10 +63,11 @@ class MeasurementsResourceTest(TestCase):
         obj = json.loads(response.content)
         self.assert_dict_equal(obj, self.MEASUREMENT)
 
-   #def test_attribute_retrieval(self):
-   #    response = self.client.get('/v1/measurements/1/attributes/')
-   #    attributes = json.loads(response.content)
-   #    self.assert_dict_equal(attributes, self.ATTRIBUTES)
+    def test_attribute_retrieval(self):
+        response = self.client.get('/v1/measurements/1/attributes/')
+        print response
+        attributes = json.loads(response.content)
+        self.assert_dict_equal(attributes, self.ATTRIBUTES)
 
 
 class RetrievalByLocationTest(TestCase):

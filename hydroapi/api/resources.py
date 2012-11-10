@@ -3,11 +3,13 @@ import json
 from django.conf.urls import url
 from django.contrib.gis.geos import Point, Polygon
 from django.contrib.gis.measure import D
+from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
 from tastypie import fields
+from tastypie.http import HttpGone, HttpMultipleChoices
 from tastypie.utils import trailing_slash
 from tastypie.resources import ModelResource, ALL
 from tastypie.serializers import Serializer
-from api.models import Measurement
+from api.models import Measurement, Attribute
 
 
 class CamelCaseJSONSerializer(Serializer):
@@ -64,6 +66,21 @@ class CamelCaseJSONSerializer(Serializer):
         return underscored_data
 
 
+class AttributesResource(ModelResource):
+    pk = fields.IntegerField(attribute='id')
+
+    class Meta:
+        resource_name = 'measurement-attributes'
+        queryset = Attribute.objects.all()
+        default_format = 'application/json'
+        excludes = ['id']
+        serializer = CamelCaseJSONSerializer()
+        include_resource_uri = False
+
+    def determine_format(self, request):
+        return self._meta.default_format
+
+
 class MeasurementsResource(ModelResource):
     pk = fields.IntegerField(attribute='id')
     latitude = fields.FloatField(attribute='location__y')
@@ -88,6 +105,7 @@ class MeasurementsResource(ModelResource):
 
     def prepend_urls(self):
         return [
+            url(r'^(?P<resource_name>%s)/(?P<pk>\d+)/attributes%s$' % (self._meta.resource_name, trailing_slash()), self.wrap_view('get_related_attributes'), name='api_get_related_attributes'),
             url(r'^(?P<resource_name>%s)/(?P<lat>-?\d+(\.\d+)?)/(?P<long>-?\d+(\.\d+)?)(/(?P<distance>\d+))?%s$' % (self._meta.resource_name, trailing_slash()), self.wrap_view('get_list'), name='api_get_for_coord'),
             url(r'^(?P<resource_name>%s)/(?P<lat>-?\d+(\.\d+)?)/(?P<long>-?\d+(\.\d+)?)/(?P<dlat>\d+(\.\d+)?)/(?P<dlong>\d+(\.\d+)?)%s$' % (self._meta.resource_name, trailing_slash()), self.wrap_view('get_list'), name='api_get_for_coord_bb'),
         ]
@@ -142,6 +160,16 @@ class MeasurementsResource(ModelResource):
             point = Point(float(kwargs['long']), float(kwargs['lat']))
             obj_list = obj_list.distance(point).order_by('distance')
         return obj_list
+
+    def get_related_attributes(self, request, **kwargs):
+        try:
+            obj = self.cached_obj_get(request=request, **self.remove_api_resource_names(kwargs))
+        except ObjectDoesNotExist:
+            return HttpGone()
+        except MultipleObjectsReturned:
+            return HttpMultipleChoices("More than one resource is found at this URI.")
+        attributes_resource = AttributesResource()
+        return attributes_resource.get_list(request, measurement_id=obj.pk)
 
     def determine_format(self, request):
         return self._meta.default_format

@@ -20,3 +20,9 @@ class Measurement(models.Model):
     location_name = models.CharField(max_length=255)
 
     objects = models.GeoManager()
+
+
+class Attribute(models.Model):
+    measurement = models.ForeignKey(Measurement)
+    key = models.CharField(max_length=255)
+    value = models.CharField(max_length=255)
