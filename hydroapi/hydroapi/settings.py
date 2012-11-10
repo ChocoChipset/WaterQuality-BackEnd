@@ -118,6 +118,7 @@ INSTALLED_APPS = (
     'django.contrib.gis',
     'django.contrib.admin',
     'django.contrib.admindocs',
+    'api',
 )
 
 # A sample logging configuration. The only tangible logging
