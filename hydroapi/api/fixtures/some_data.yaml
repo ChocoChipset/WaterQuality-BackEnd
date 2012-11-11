@@ -1,0 +1,4 @@
+-   fields: {code: 4, comment: Dummy comment, location: POINT (21.0000000000000000
+            52.0000000000000000), location_name: Warsaw, quality: 87, source: 1}
+    model: api.measurement
+    pk: 1

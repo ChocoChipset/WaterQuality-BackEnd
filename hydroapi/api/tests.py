@@ -1,4 +1,5 @@
 import json
+import datetime
 from django.test import TestCase
 from django.test.client import Client
 from django.contrib.gis.geos import Point
@@ -31,12 +32,16 @@ class MeasurementsResourceTest(TestCase):
         location = Point(
             self.MEASUREMENT['longitude'], self.MEASUREMENT['latitude'])
         location_name = self.MEASUREMENT['locationName']
+        created_at = datetime.datetime.now()
         measurement = Measurement.objects.create(pk=self.MEASUREMENT['pk'],
                                                  location=location,
                                                  source=source,
                                                  quality=87,
                                                  code=code,
                                                  location_name=location_name)
+        measurement.created_at = created_at
+        measurement.save()
+        self.MEASUREMENT['createdAt'] = created_at.isoformat()
         for k, v in self.ATTRIBUTES.iteritems():
             Attribute.objects.create(key=k, value=v, measurement=measurement)
         self.measurement = measurement
@@ -44,7 +49,7 @@ class MeasurementsResourceTest(TestCase):
     def assert_dict_equal(self, a, b):
         self.assertEqual(len(a), len(b))
         for k in a.iterkeys():
-            self.assertEqual(a[k], b[k], k)
+            self.assertEqual(a[k], b[k])
 
     def test_json_is_default(self):
         response = self.client.get('/v1/measurements/')
@@ -65,9 +70,12 @@ class MeasurementsResourceTest(TestCase):
 
     def test_attribute_retrieval(self):
         response = self.client.get('/v1/measurements/1/attributes/')
-        print response
-        attributes = json.loads(response.content)
-        self.assert_dict_equal(attributes, self.ATTRIBUTES)
+        elements = json.loads(response.content)
+        attributes = elements['objects']
+        self.assertEqual(len(attributes), len(self.ATTRIBUTES))
+        for attr in attributes:
+            self.assertTrue(attr['key'] in self.ATTRIBUTES)
+            self.assertEqual(attr['value'], self.ATTRIBUTES[attr['key']])
 
 
 class RetrievalByLocationTest(TestCase):
